@@ -1,0 +1,934 @@
+<template>
+    <div id="lmService">
+      <!-- 搜素栏 -->
+      <van-sticky>
+        <div style="background-color: white;">
+          <van-row type="flex" justify="center" align="center" style="margin-bottom:20rpx">
+            <van-col span="24">
+              <div
+                style="display: flex;margin-left: 5px;border:1px solid #c0c0c0;border-radius: 10px;padding: 2px;"
+              >
+                <!-- 下拉框 -->
+                <select
+                  @change="onSelectChange"
+                  v-model="chosedOptinOne"
+                  style="width: 80px;border: 0px;outline:none;background: white;"
+                >
+                  <option
+                    :value="i.value"
+                    v-for="i in selectList"
+                    :key="i.value"
+                    >{{ i.label }}</option
+                  >
+                </select>
+  
+                <form action="/">
+                  <van-search
+                    style="padding:2px 0px;margin-right: 5px;"
+                    v-model="value"
+                    show-action
+                    left-icon=""
+                    placeholder="请输入搜索关键词"
+                  >
+                    <!-- @search="onSearch" -->
+                    <template #action>
+                      <div @click="onSearch(value)">搜索</div>
+                    </template>
+                  </van-search>
+                </form>
+              </div>
+            </van-col>
+            <div style="background-color:#FCDE7E;"></div>
+            <!-- <van-col span="5">
+              <van-button
+                style="color: #494949;background-color:#FCDE7E ;"
+                size="small"
+                @click="handleNewOrder"
+                >新建销售出库单</van-button
+              >
+            </van-col>
+            <van-col span="5">
+              <van-button
+                style="color: #494949;background-color:#FCDE7E ;"
+                size="small"
+                @click="handleNewOrder"
+                >批量审核</van-button
+              >
+            </van-col>
+            <van-col span="4">
+              <van-button
+                style="color: #494949;background-color:#FCDE7E ;"
+                size="small"
+                @click="handleNewOrder"
+                >删除</van-button
+              >
+            </van-col> -->
+            <!-- <van-col span="3">
+              <van-button
+                style="color: white;background-color:#00437C ;"
+                size="small"
+                @click="handleRefresh"
+                >刷新</van-button
+              >
+            </van-col> -->
+          </van-row>
+          <van-row style="margin-top:15px">
+            <van-col span="8">
+              <van-button
+                style="color: #494949;background-color:#FCDE7E ;"
+                size="small"
+                @click="handleNewOrder"
+                >新建销售出库单</van-button
+              >
+            </van-col>
+            <van-col span="8">
+              <van-button
+                style="color: #494949;background-color:#FCDE7E ;"
+                size="small"
+                @click="handleNewOrder"
+                >批量审核</van-button
+              >
+            </van-col> 
+            <van-col span="4">
+              <van-button
+                style="color: #494949;background-color:#FCDE7E ;"
+                size="small"
+                @click="handleNewOrder"
+                >删除</van-button
+              >
+            </van-col>   
+          </van-row>
+          <!-- 筛选 -->
+          <van-row type="flex" justify="center" align="center" style="margin-top:15px">
+            <van-col
+              span="5"
+              style="border: 0;font-size: 15px;background-color: #fff;"
+              >筛选：</van-col
+            >
+            <van-col span="19">
+              <van-dropdown-menu>
+                <van-dropdown-item
+                  get-container="body"
+                  title="订单时间"
+                  ref="dateRef"
+                >
+                  <!-- 订单时间 -->
+                  <van-cell
+                    title="选择日期区间"
+                    :value="date"
+                    @click="show = true"
+                  />
+                  <van-calendar
+                    v-model="show"
+                    type="range"
+                    :min-date="minDate"
+                    :max-date="maxDate"
+                    @confirm="onConfirm_date"
+                    @unselect="onUnselect_date"
+                  />
+  
+                  <div
+                    style="padding: 5px 16px;display: flex;justify-content: space-between;"
+                  >
+                    <van-button
+                      style="width: 200px;"
+                      type="danger"
+                      size="small"
+                      block
+                      round
+                      @click="handleDateEmpty"
+                    >
+                      置空
+                    </van-button>
+                    <van-button
+                      style="width: 200px;margin-left: 10px;"
+                      type="danger"
+                      size="small"
+                      block
+                      round
+                      @click="handleDateRange"
+                    >
+                      确认
+                    </van-button>
+                  </div>
+                </van-dropdown-item>
+  
+                <van-dropdown-item title="合作商户" ref="merchantRef">
+                  <!-- 合作商户 -->
+                  <van-picker
+                    :title="merchantTitle"
+                    show-toolbar
+                    :columns="columns"
+                    value-key="label"
+                    cancel-button-text="置空"
+                    @confirm="onConfirmPicker"
+                    @cancel="onCancelPicker"
+                    @change="onChangePicker"
+                  />
+                </van-dropdown-item>
+              </van-dropdown-menu>
+            </van-col>
+          </van-row>
+        </div>
+  
+        <!-- 容器 -->
+        <van-tabs color="#00437C" v-model="active" @click="onClickTab">
+          <van-tab
+            v-for="(item, index) in tabList"
+            :key="index"
+            :title="item.label"
+            :name="item.value"
+            :badge="item.SummaryCount ? item.SummaryCount : ''"
+          >
+          </van-tab>
+        </van-tabs>
+      </van-sticky>
+  
+      <!-- 盒子 -->
+      <van-list
+        v-model="loading"
+        :finished="finished"
+        finished-text="没有更多了"
+        @load="handleOnload(page)"
+        :error.sync="error"
+        error-text="加载失败,请重试!"
+      >
+        <div v-if="serviceList.length > 0">
+
+          <div
+            class="listBox"
+            v-for="(citem, cindex) in serviceList"
+            :key="cindex"
+          >
+          <van-checkbox v-model="checked" shape="square" icon-size="20px" style="font-size:20px;margin:3px"></van-checkbox>
+            <div class="list_title">
+              <p @click="hanleEditOrder(citem.djh)" style="color:#00437C">
+                订单号：{{ citem.djh }}
+              </p>
+              <p style="margin-left: 10px;">
+                客户名称：{{ citem.SaleToUserName }}
+              </p>
+            </div>
+  
+            <hr />
+  
+            <div class="detail_box">
+              <!-- <div class="detail_img">
+                <img
+                  style="width: 100%;height:100%;"
+                  :src="citem.userUploadImage1"
+                  mode="scaleToFill"
+                />
+              </div> -->
+  
+              <div class="detail_text">
+                <p align="left">制单人:{{ citem.zdr }}</p>
+                <p align="left">电话号码:{{ citem.SaleToUserPhone }}</p>
+                <p align="left">出货店铺:{{ citem.fromstorename }}</p>
+                <!-- <p align="left">数量合计:{{ citem.slhj }}</p>
+                <p align="left">金额合计:{{ citem.jehj}}</p> -->
+
+                <div style="display: flex;">
+                  <p align="left">总件数:{{ citem.slhj }}件</p>
+                  &nbsp;&nbsp;&nbsp;
+                  <p align="left">总金额:{{ citem.jehj }}</p>
+                </div>
+              </div>
+            </div>
+  
+            <hr />
+  
+            <div class="footer_box">
+              <van-row type="flex" justify="center" align="center">
+                <van-col span="10" style="color:#00437C"
+                  >状态：{{ citem.status }}</van-col
+                >
+  
+                <!-- <van-col span="8">
+                  师傅名称:{{ citem.WorkerName }} -->
+                <!-- <van-button
+                  type="primary"
+                  size="small"
+                  @click="hanlePickup(citem.descno)"
+                  >客户取货</van-button
+                > -->
+                <!-- </van-col> -->
+                <van-col span="14" type="flex" justify="space-between">
+                  <van-button
+                    :disabled="citem.statusid == 10 || citem.statusid == 44"
+                    style="color: white;background-color:#00437C ;"
+                    size="small"
+                    @click="hanleEditOrder(citem.descno)"
+                    >审核</van-button
+                  >
+                </van-col>
+              </van-row>
+            </div>
+          </div>
+        </div>
+        <!-- 空数据占位图 -->
+        <div v-else>
+          <van-empty style="padding: 32px 0px 0px 0px;" />
+        </div>
+      </van-list>
+    </div>
+  </template>
+  
+  <script>
+  import { Toast } from "vant";
+  
+  export default {
+    name: "web",
+    data() {
+      return {
+        chosedOptinOne: "realname", //，默认 '客户名称'
+        merchantTitle: "请选择商户",
+        active: "",
+        value: "",
+        date: "",
+        dateScope: [],
+        show: false,
+        error: false,
+        loading: false,
+        finished: false,
+        checked:false,
+        minDate: new Date(2020, 0, 1),
+        maxDate: new Date(),
+        userInfo:{},
+        // columns: ["杭州", "宁波", "温州", "绍兴", "湖州", "嘉兴", "金华", "衢州"],
+        columns: [
+          { label: "金店", value: "金店" },
+          { label: "散客", value: "散客" },
+          { label: "所有", value: "" }
+        ],
+        // tabList: ["全部", "未接单", "维修中", "待打款", "未确认", "已完成"],
+        tabList: [
+          {
+            label: "全部",
+            value: ""
+            // value: "全部"
+          },
+          {
+            label: "待审核",
+            value: "待审核",
+            SummaryCount: 0
+            // value: "待师傅确认"
+          },
+          {
+            label: "已审批",
+            value: "已审批",
+            SummaryCount: 0
+            // value: "维修中"
+          },
+        ],
+        selectList: [
+          {
+            label: "单据号",
+            value: "djh"
+          },
+          {
+            label: "制单人",
+            value: "zdr"
+          },
+          {
+            label: "客户姓名",
+            value: "SaleToUserName"
+          },
+
+        ],
+        serviceList: [
+          // {
+          //   pono: 11111111,
+          //   name: "真棒啊你",
+          //   img:
+          //     "https://uat-jewelry.oss-cn-shenzhen.aliyuncs.com//1078/Storage/master/product/images/1010300001.jpg?x-oss-process=image/resize,h_410,w_410",
+          //   ss: 111,
+          //   kz: 222,
+          //   wxxm: 333,
+          //   hhz: 444
+          // },
+          // {
+          //   pono: 11111111,
+          //   name: "真棒啊你",
+          //   img:
+          //     "https://uat-jewelry.oss-cn-shenzhen.aliyuncs.com//1078/Storage/master/product/images/1010300001.jpg?x-oss-process=image/resize,h_410,w_410",
+          //   ss: 111,
+          //   kz: 222,
+          //   wxxm: 333,
+          //   hhz: 444
+          // }
+        ],
+        page: {
+          current: 1,
+          pageSize: 5,
+          status: ""
+        }
+      };
+    },
+    methods: {
+      // 下拉选择
+      onSelectChange(val) {
+        // console.log(this.chosedOptinOne);
+      },
+      // 搜索
+      async onSearch(val) {
+        // console.log(val);
+        // console.log(this.chosedOptinOne);
+        // Toast(val);
+  
+        this.loading = true;
+        this.finished = false;
+        this.serviceList = [];
+  
+        this.page = {
+          ...this.page,
+          current: 1,
+          pageSize: 5,
+          [this.chosedOptinOne]: val
+        };
+  
+        // 查询数据
+        await this.handleOnload(this.page);
+      },
+  
+      // 清理搜索栏
+      // onCancel() {
+      //   Toast("取消");
+      // },
+  
+      // 新建订单
+      handleNewOrder() {
+        const workerid =
+          this.getUrlParam("workerid") == undefined
+            ? ""
+            : this.getUrlParam("workerid");
+  
+        const url = `http://uatdev.unionalltech.com/preview.html?appId=0e970815-85a2-4f14-81d0-0cb49b6bafb3&pageId=0b4360d8-56b4-49e3-9271-a1a022e7b333&token=C882700339B1F816C8B8D508FE26095AFDFD27E9C811C2056DE708B9D08817AE&workerid=${workerid}`;
+        window.location.href = url;
+      },
+  
+      // 刷新
+      handleRefresh() {
+        this.serviceList = [];
+        const params = {
+          current: 1,
+          pageSize: 5,
+          status: this.page.status
+        };
+        this.handleOnload(params);
+      },
+  
+      // tab切换
+      async onClickTab(value) {
+        this.loading = true;
+        this.finished = false;
+  
+        this.serviceList = [];
+  
+        this.page = {
+          ...this.page,
+          current: 1,
+          pageSize: 5,
+          status: value
+        };
+        // return;
+  
+        await this.handleOnload(this.page);
+      },
+  
+      // 上拉底部更新
+      // onLoad(page) {
+      //   console.log(page);
+      //   return;
+      //   this.handleOnload(this.page);
+      // },
+  
+      // 加载数据
+      async handleOnload(paramsObj = {}) {
+        // console.log(paramsObj);
+  
+        // this.loading = true;
+  
+        const userid =
+          this.getUrlParam("userid") == undefined
+            ? ""
+            : this.getUrlParam("userid");
+        const workerid =
+          this.getUrlParam("workerid") == undefined
+            ? ""
+            : this.getUrlParam("workerid");
+  
+        // const url =
+        // "https://spapi.zhuanyegou.com/api/values?action=UserOrderShopServicesMain_WeiXin_GetList&returntype=childtables&userid=&customid=1079";
+  
+        // const url = `https://spapi.zhuanyegou.com/api/values?action=UserOrderShopServicesMain_GetList&customid=1079&userid=${userid}&workerid=${workerid}`;
+  
+        // const url = `https://spapi.zhuanyegou.com/api/values?action=UserOrderShopServicesMain_WeiXin_GetList&customid=1079&returntype=tables&userid=${userid}&workerid=${workerid}`;
+        const url = "https://spapi.zhuanyegou.com/api/values?action=WarehouseIn_GetList&swid=4"
+        await this.$axios
+          .get(url, {
+            // params: {
+            //   ...paramsObj
+            // }
+          })
+          .then( res => {
+            console.log(res);
+            const { data, code, total } = res.data;
+  
+            console.log("total", total);
+  
+            if (code == 0) {
+              let current = this.page.current;
+              this.page.current = ++current;
+              let dataList = data;
+            //   let dataList =  this.responseHandler(data);
+              console.log("dataList", dataList);
+  
+              if (dataList) {
+                this.serviceList.push(...dataList);
+                // console.log("length", this.serviceList.length);
+                // console.log("finished", this.finished);
+                // 加载状态结束
+                console.log("serviceList",this.serviceList)
+                this.loading = false;
+  
+                // 数据全部加载完成
+                if (this.serviceList.length >= total) {
+                  this.finished = true;
+                }
+              }
+            }
+          })
+          .catch(err => {
+            this.error = true;
+            this.loading = false;
+          });
+      },
+  
+      // 格式化事件
+      formatDate(date) {
+        return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+      },
+  
+      //  选中日期区间
+      onConfirm_date(date) {
+        // console.log("确认选中", date);
+        const [start, end] = date;
+        this.show = false;
+        this.dateScope = date.map(item => {
+          return (item = this.formatDate(item));
+        });
+        this.date = `${this.formatDate(start)} / ${this.formatDate(end)}`;
+      },
+  
+      // 取消选中日期
+      onUnselect_date(date) {
+        // console.log("取消选中", date);
+        // const [start, end] = date;
+        this.show = false;
+        this.date = ``;
+      },
+  
+      // 置空日期
+      handleDateEmpty() {
+        if (!this.date) {
+          return Toast("数据已置空!");
+        }
+  
+        this.serviceList = [];
+        this.date = "";
+  
+        this.page = {
+          ...this.page,
+          current: 1,
+          pageSize: 5,
+          createtime_start: "",
+          createtime_end: ""
+        };
+  
+        this.handleOnload(this.page);
+      },
+  
+      // 确认日期区间事件
+      handleDateRange() {
+        // console.log("时间区间", this.date);
+        // console.log("时间区间2", this.dateScope);
+        if (!this.date) {
+          return Toast("请选择时间范围！");
+        }
+        this.loading = true;
+        this.finished = false;
+        this.serviceList = [];
+  
+        this.page = {
+          ...this.page,
+          current: 1,
+          pageSize: 5,
+          createtime_start: this.dateScope[0],
+          createtime_end: this.dateScope[1]
+        };
+  
+        this.handleOnload(this.page);
+  
+        this.$refs.dateRef.toggle(false); //隐藏菜单
+      },
+  
+      // 选中合作商户
+      onChangePicker(_, val) {
+        // Toast(`当前值：${value}, 当前索引：${index}`);
+        // console.log(val);
+        Toast(`当前选中：${val.label}`);
+        this.merchantTitle = val.label;
+      },
+  
+      // 置空合作商户
+      onCancelPicker() {
+        Toast("置空选择！");
+  
+        this.merchantTitle = "请选择商户";
+  
+        this.page = {
+          ...this.page,
+          current: 1,
+          pageSize: 5,
+          membertypedesc: ""
+        };
+  
+        this.$refs.merchantRef.toggle(false);
+        this.handleOnload(this.page);
+      },
+  
+      // 确认合作商户
+      onConfirmPicker(val) {
+        // console.log("val", val);
+        // Toast(`当前值：${val.label}, 当前索引：${val.value}`);
+  
+        this.loading = true;
+        this.finished = false;
+        this.serviceList = [];
+  
+        this.page = {
+          ...this.page,
+          current: 1,
+          pageSize: 5,
+          membertypedesc: val.value //合作商户
+        };
+  
+        this.$refs.merchantRef.toggle(false);
+  
+        this.handleOnload(this.page);
+      },
+  
+      // 按钮文字 处理
+      handleBtnText({ statusid }) {
+        // console.log("居然可以！", statusid);
+        let btnText = "";
+        switch (statusid) {
+          case 0:
+            btnText = "师傅评估";
+            break;
+          case 3:
+            btnText = "维修完成";
+            break;
+          default:
+            btnText = "操作订单";
+        }
+        return btnText;
+      },
+  
+      // 修改订单
+      hanleEditOrder(descno) {
+        // console.log("descno", descno);
+  
+        const workerid =
+          this.getUrlParam("workerid") == undefined
+            ? ""
+            : this.getUrlParam("workerid");
+  
+        // alert('用户标识' + this.getUrlParam("workerid"))
+  
+        const url = `http://uatdev.unionalltech.com/preview.html?appId=0e970815-85a2-4f14-81d0-0cb49b6bafb3&pageId=0b4360d8-56b4-49e3-9271-a1a022e7b333&token=C882700339B1F816C8B8D508FE26095AFDFD27E9C811C2056DE708B9D08817AE&descno=${descno}&workerid=${workerid}`; //新版本2
+  
+        window.location.href = url;
+      },
+  
+      // 客户取货
+      hanlePickup(dataObj) {
+        console.log("dataObj", dataObj);
+        // 发送模板消息
+        const {
+          userid,
+          status,
+          createtime,
+          id,
+          descno,
+          remark,
+          customerneedpay,
+          detailStr
+        } = dataObj;
+  
+        let itemStr = [
+          `当前状态:${status}`,
+          this.timeFormatSeconds(createtime),
+          `维修单:维修项目名称:${detailStr}|总价格:${customerneedpay || 0}`,
+          descno,
+          remark
+        ];
+  
+        let paramsObj = {
+          userids: userid, //注：是数组形式
+          customid: 1079,
+          messagetype: "OrderCreated",
+          items: itemStr.join(",")
+        };
+  
+        //发送方法
+        const url = `https://www.daogoujingling.com/api/wechatapplet.ashx?action=SendWeiXinMessageByUserId`;
+  
+        this.$axios
+          .get(url, {
+            params: {
+              ...paramsObj
+            }
+          })
+          .then(async res => {
+            console.log(res);
+          });
+      },
+  
+      // 裁剪url参数
+      getUrlParam(key) {
+        let searchString = window.location.hash;
+        searchString = searchString.replace("#/?", "");
+        // console.log(window.location);
+        // alert(searchString);
+        const pathArr = searchString.split("&");
+        for (let i of pathArr) {
+          const kv = i.split("=");
+          if (kv[0] == key) {
+            return kv[1];
+          }
+        }
+    
+      },
+      //获取用户信息
+      activeGetUserInfo() {
+        window.getuserMessage = this.getuserMessage;
+        this.setState({
+        userInfo: "starting to load"
+        }, () => {
+
+        })
+        const message = {
+        inputParam: "()",
+        callBackFunc: "getuserMessage"
+        }
+        GetUserInfo.postMessage(JSON.stringify(message))
+
+
+    },
+    getuserMessage(value) {
+        this.setState({
+        userInfo: JSON.parse(value) || "user info is empty",
+        }, () => {
+        console.log('success')
+        try {
+            this.loadData()
+        } catch (err) {
+            console.log('err')
+        }
+
+        })
+
+        return Promise.resolve()
+    },
+    //批量审核单据
+    verifyData(event){
+     console.log(22,event)
+     const url = "https://spapi.zhuanyegou.com/api/values?action=WarehouseIn_Approve"
+    //  const urlParams = this.appHelper.utils.getUrlParams()
+    //  const { ManagerId} = urlParams
+    const {userInfo} = this.state
+    //  const mainid = event.extraInfo.columnProp.entity.mainid
+     const params ={
+       mainid,
+       shr: userInfo.OrgSetting.StoreId
+     }
+     this.appHelper.utils.request({
+       url,
+       params,
+       method:"post",
+       responseInfo: {
+         autoTip: false
+       },
+       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+     }).then(res =>{
+       console.log(22,res)
+       this.setState({ params: { time: Date.now() } })
+      // this.loadData()
+
+     })
+	},
+    
+      // 时间格式化
+      timeFormatSeconds(time) {
+        var d = time ? new Date(time) : new Date();
+        var year = d.getFullYear();
+        var month = d.getMonth() + 1;
+        var day = d.getDate();
+        var hours = d.getHours();
+        var min = d.getMinutes();
+        var seconds = d.getSeconds();
+  
+        if (month < 10) month = "0" + month;
+        if (day < 10) day = "0" + day;
+        if (hours < 0) hours = "0" + hours;
+        if (min < 10) min = "0" + min;
+        if (seconds < 10) seconds = "0" + seconds;
+  
+        // return (year + '-' + month + '-' + day + ' ' + hours + ':' + min + ':' + seconds);
+        return year + "-" + month + "-" + day;
+      },
+  
+      // 格式化数据
+      responseHandler(data) {
+        // console.log("格式化数据", data);
+  
+        let formatData = data.map(item => {
+          let userImage = item.Child[0].userUploadImage1;
+          let tmp = item.Child[0].productdesc
+            ? JSON.parse(item.Child[0].productdesc)
+            : {};
+          let total = item.Child.reduce(
+            (sum, aitem) => (sum += aitem.customerneedpay),
+            0
+          );
+  
+          let wxejStr = "";
+  
+          if (tmp.维修二级) {
+            tmp.维修二级.forEach(citem => {
+              let key = citem.name;
+              let value = citem.count;
+              let keyorvalue = `${key},数量：${value}|`;
+              wxejStr += keyorvalue;
+            });
+          }
+  
+          return {
+            detailStr: wxejStr || "暂无",
+            shoushi: tmp.首饰成色 || "暂无",
+            baoshizl: tmp.宝石种类 || "暂无",
+            kezhong: tmp.克量 || "暂无",
+            weixiuxm: tmp.维修项目 || "暂无",
+            hanhouz: tmp.焊后重 || "暂无",
+            userUploadImage1: userImage,
+            wxCount: item.Child.length,
+            wxPriceTotal: total,
+            ...item
+          };
+        });
+  
+        // console.log("formatData", formatData);
+  
+        return formatData || [];
+      }
+    },
+    mounted() {
+      this.handleOnload()
+      const workerid =
+        this.getUrlParam("workerid") == undefined
+          ? ""
+          : this.getUrlParam("workerid");
+  
+      let url;
+    //   if (workerid) {
+    //     console.log(111);
+    //     url = `https://spapi.zhuanyegou.com/api/values?action=GetSummaryCount&customid=1079&workerid=${workerid}`;
+    //   } else {
+    //     console.log(222);
+    //     url = `https://spapi.zhuanyegou.com/api/values?action=GetSummaryCount&customid=1079`;
+    //   }
+      
+    //   this.$axios
+    //     .get(url, {
+    //       params: {}
+    //     })
+    //     .then(res => {
+    //       console.log("状态数", res);
+    //       let data = res.data.data;
+    //       this.tabList.forEach(item => {
+    //         data.forEach(citem => {
+    //           //不需要返回已完成状态的
+    //           if (item.value != 6) {
+    //             if (item.value + "" == citem.statusid + "") {
+    //               item.SummaryCount = citem.SummaryCount;
+    //             }
+    //           }
+    //         });
+    //       });
+  
+    //       console.log("tabList", this.tabList);
+    //     });
+    }
+  };
+  </script>
+  
+  <style lang="scss" scoped>
+  #lmService {
+    left: 0;
+    right: 0;
+    /* height: 100vh; */
+    text-align: center;
+    margin-top: 5px;
+  }
+  
+  .listBox {
+    margin: 10px 20px;
+    padding: 0;
+    background-color: white;
+    border: 2px solid #c0c0c0;
+    border-radius: 10px;
+  }
+  
+  /* .listBox_b {
+    margin: 10px 10px;
+    padding: 0;
+    background-color: white;
+    border: 2px solid #c0c0c0;
+    border-radius: 10px;
+  } */
+  
+  .list_title {
+    display: flex;
+    margin: 0px 10px;
+    font-size: 12px;
+  }
+  
+  .detail_box {
+    display: flex;
+    margin: 10px 10px;
+  }
+  
+  .detail_img {
+    width: 80px;
+    height: 100px;
+    border: 1px solid #c0c0c0;
+  }
+  
+  .detail_text {
+    flex: 3;
+    margin-left: 10px;
+    font-size: 12px;
+  }
+  .detail_text p {
+    margin: 0;
+  }
+  
+  .footer_box {
+    font-size: 12px;
+    /* line-height: 32px; */
+    margin-bottom: 5px;
+  }
+  </style>
+  
